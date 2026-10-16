@@ -34,4 +34,6 @@ jobs:
         run: ./windows/build.ps1
       - uses: actions/upload-artifact@v5
         with:
-          name:
+          name: DropHop-Windows
+          path: windows/dist/DropHop.exe
+          if-no-files-found: error
