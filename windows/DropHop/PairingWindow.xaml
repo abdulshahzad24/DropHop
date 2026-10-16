@@ -1,0 +1,65 @@
+<Window x:Class="DropHop.PairingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pair phone" Width="400" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource Ink}"
+        FontFamily="{StaticResource UiFont}" Foreground="{StaticResource Paper}"
+        SourceInitialized="Window_SourceInitialized">
+    <Grid>
+        <Border IsHitTestVisible="False">
+            <Border.Background>
+                <RadialGradientBrush Center="0,0" GradientOrigin="0,0" RadiusX="0.9" RadiusY="0.6">
+                    <GradientStop Color="#38F2652D" Offset="0" />
+                    <GradientStop Color="#00F2652D" Offset="1" />
+                </RadialGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <StackPanel Margin="28,26,28,24">
+            <Border Width="58" Height="58" CornerRadius="18" Background="{StaticResource Tile}" HorizontalAlignment="Center">
+                <TextBlock Text="&#xE8EA;" FontFamily="{StaticResource IconFont}" FontSize="24"
+                           Foreground="#47392F" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+
+            <!-- waiting for the phone -->
+            <StackPanel x:Name="CodePanel" Margin="0,16,0,0">
+                <TextBlock Text="Enter this code on your phone" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock x:Name="CodeText" FontFamily="{StaticResource MonoFont}" FontSize="44" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Margin="0,10,0,6" />
+                <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="12.5" Foreground="{StaticResource Dim}"
+                           Text="Open DropHop on your phone (same Wi-Fi), pick this PC and type the code. It expires in 2 minutes." />
+                <TextBlock x:Name="AddressText" Style="{StaticResource Mono}" FontSize="10" TextAlignment="Center"
+                           Foreground="{StaticResource Faint}" Margin="0,14,0,0" />
+            </StackPanel>
+
+            <!-- already paired -->
+            <StackPanel x:Name="PairedPanel" Margin="0,16,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="PairedTitle" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" TextWrapping="Wrap" />
+                <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="12.5" Foreground="{StaticResource Dim}" Margin="0,8,0,0"
+                           Text="Files on your shelf now show up in DropHop on that phone, and only that phone can download them." />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
+                    <Button Style="{StaticResource Pill}" Content="UNPAIR" Padding="16,8" Margin="0,0,8,0" Click="Unpair_Click" />
+                    <Button Style="{StaticResource Pill}" Content="DONE" Padding="16,8" Background="{StaticResource Paper}"
+                            Foreground="{StaticResource Ink}" BorderBrush="Transparent" Click="Done_Click" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- code ran out -->
+            <StackPanel x:Name="ExpiredPanel" Margin="0,16,0,0" Visibility="Collapsed">
+                <TextBlock Text="Code expired" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <Button Style="{StaticResource Pill}" Content="GET A NEW CODE" Padding="16,8" Margin="0,14,0,0"
+                        HorizontalAlignment="Center" Background="{StaticResource Paper}" Foreground="{StaticResource Ink}"
+                        BorderBrush="Transparent" Click="NewCode_Click" />
+            </StackPanel>
+
+            <!-- currently paired, while a new code is showing -->
+            <StackPanel x:Name="CurrentPanel" Margin="0,16,0,0" Visibility="Collapsed">
+                <Rectangle Height="1" Fill="{StaticResource Line}" Margin="0,0,0,10" />
+                <Grid>
+                    <TextBlock x:Name="CurrentText" FontSize="11.5" Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
+                    <Button Style="{StaticResource Pill}" Content="UNPAIR" Padding="10,4" HorizontalAlignment="Right" Click="Unpair_Click" />
+                </Grid>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

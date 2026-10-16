@@ -1,0 +1,245 @@
+<Window x:Class="DropHop.ShelfWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DropHop"
+        Title="DropHop" Width="408" Height="588" MinWidth="328" MinHeight="368" MaxWidth="588" MaxHeight="928"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        ShowInTaskbar="False" Topmost="True" ShowActivated="False" AllowDrop="True"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        FontFamily="{StaticResource UiFont}" Foreground="{StaticResource Paper}"
+        PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown"
+        DragEnter="Window_DragOver" DragOver="Window_DragOver" DragLeave="Window_DragLeave" Drop="Window_Drop"
+        SizeChanged="Window_SizeChanged">
+
+    <Window.Resources>
+        <DataTemplate x:Key="ItemTemplate" DataType="{x:Type local:ShelfItem}">
+            <Border Margin="0,0,0,8" Padding="9" CornerRadius="22" BorderThickness="1"
+                    Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                    PreviewMouseLeftButtonDown="Row_PreviewMouseLeftButtonDown"
+                    PreviewMouseMove="Row_PreviewMouseMove"
+                    PreviewMouseRightButtonUp="Row_PreviewMouseRightButtonUp">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- file icon sits on a cream tile -->
+                    <Border Width="44" Height="44" CornerRadius="14" Background="{StaticResource Tile}">
+                        <Image Source="{Binding Icon}" Width="30" Height="30" Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Margin="11,0,6,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontSize="13.5" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Margin="0,3,0,0"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource Dim}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SubtitleAccent}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource Accent}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource RoundIcon}" Content="&#xE72D;" Margin="0,0,6,0"
+                                ToolTip="Copy file (paste into Explorer, e-mail or chat)" Click="RowShare_Click" />
+                        <Control Style="{StaticResource Spinner}" Margin="0,0,6,0"
+                                 Visibility="{Binding SpinnerVisibility}" />
+                        <Button Style="{StaticResource RoundIcon}" Content="&#xE8C8;" Margin="0,0,6,0"
+                                Foreground="{StaticResource Accent}" ToolTip="Copy link"
+                                Visibility="{Binding CopyVisibility}" Click="RowCopy_Click" />
+                        <Button Style="{StaticResource RoundIcon}" Content="&#xE71B;" Margin="0,0,6,0"
+                                ToolTip="Create shareable link"
+                                Visibility="{Binding LinkMenuVisibility}" Click="RowLink_Click" />
+                        <Button Style="{StaticResource RoundIcon}" Content="&#xE711;"
+                                ToolTip="Remove from shelf" Click="RowRemove_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
+    <!-- outer margin leaves room for the drop shadow -->
+    <Grid Margin="14">
+        <Border x:Name="Shell" CornerRadius="30" Background="{StaticResource Ink}"
+                BorderBrush="{StaticResource ShellBorder}" BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="26" ShadowDepth="7" Direction="270" Opacity="0.55" />
+            </Border.Effect>
+
+            <Grid>
+                <!-- soft warm glow in the corner -->
+                <Border CornerRadius="30" IsHitTestVisible="False">
+                    <Border.Background>
+                        <RadialGradientBrush Center="0,0" GradientOrigin="0,0" RadiusX="0.85" RadiusY="0.6">
+                            <GradientStop Color="#38F2652D" Offset="0" />
+                            <GradientStop Color="#00F2652D" Offset="1" />
+                        </RadialGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- ===== header: big light number + label, clear + close ===== -->
+                    <Grid x:Name="Header" Grid.Row="0" Background="Transparent" Margin="20,16,20,8"
+                          MouseLeftButtonDown="Drag_MouseLeftButtonDown">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel IsHitTestVisible="False">
+                            <TextBlock x:Name="TitleLabel" Style="{StaticResource Mono}" Text="ON THE SHELF"
+                                       Foreground="{StaticResource Dim}" TextTrimming="CharacterEllipsis" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="CountText" Text="0" FontSize="46" FontWeight="Light"
+                                           FontFamily="{StaticResource DisplayFont}" />
+                                <TextBlock x:Name="CountLabel" Text="items" FontSize="13" FontWeight="Light"
+                                           Foreground="{StaticResource Dim}" VerticalAlignment="Bottom" Margin="7,0,0,11" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,2,0,0">
+                            <Button x:Name="ClearBtn" Style="{StaticResource Pill}" Content="CLEAR" Margin="0,0,8,0"
+                                    Padding="11,0" Height="26" Foreground="#CCF3EEE6" Click="Clear_Click" />
+                            <Button Style="{StaticResource RoundIcon}" Content="&#xE711;" Click="Close_Click" ToolTip="Hide" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ===== chip bar: All + one chip per group + "+" ===== -->
+                    <ScrollViewer x:Name="ChipScroller" Grid.Row="1" HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled" Background="Transparent"
+                                  PreviewMouseWheel="ChipScroller_PreviewMouseWheel"
+                                  MouseLeftButtonDown="Drag_MouseLeftButtonDown">
+                        <StackPanel x:Name="ChipsPanel" Orientation="Horizontal" Margin="18,8">
+                            <StackPanel x:Name="ChipsHost" Orientation="Horizontal" />
+
+                            <Border x:Name="NewGroupPill" Visibility="Collapsed" CornerRadius="100" BorderThickness="1"
+                                    BorderBrush="{StaticResource Accent}" Background="{StaticResource Surface}"
+                                    Width="132" Height="26" Margin="0,0,6,0">
+                                <Grid>
+                                    <TextBlock x:Name="NewGroupHint" Text="Group name" FontSize="12" Margin="12,0,0,0"
+                                               Foreground="{StaticResource Dim}" VerticalAlignment="Center"
+                                               IsHitTestVisible="False" />
+                                    <TextBox x:Name="NewGroupBox" Background="Transparent" BorderThickness="0" FontSize="12"
+                                             Foreground="{StaticResource Paper}" CaretBrush="{StaticResource Paper}"
+                                             Padding="9,0" VerticalContentAlignment="Center" MaxLength="40"
+                                             TextChanged="NewGroupBox_TextChanged" KeyDown="NewGroupBox_KeyDown" />
+                                </Grid>
+                            </Border>
+                            <Button x:Name="CancelAddBtn" Style="{StaticResource RoundIcon}" Content="&#xE711;" Width="24" Height="24"
+                                    Visibility="Collapsed" Click="CancelAdd_Click" />
+                            <Button x:Name="AddBtn" Style="{StaticResource RoundIcon}" Content="&#xE710;" Width="24" Height="24"
+                                    ToolTip="New group" Click="Add_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- ===== actions for the selected group ===== -->
+                    <Border x:Name="GroupBar" Grid.Row="2" Visibility="Collapsed" CornerRadius="20" BorderThickness="1"
+                            Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                            Padding="12,8" Margin="14,0,14,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock x:Name="GroupInfo" FontSize="10.5" TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" Foreground="{StaticResource Dim}" />
+
+                            <StackPanel x:Name="RenamePanel" Orientation="Horizontal" Visibility="Collapsed" Grid.ColumnSpan="2">
+                                <Border CornerRadius="100" BorderThickness="1" BorderBrush="{StaticResource Accent}"
+                                        Background="{StaticResource Surface}" Width="190" Height="26">
+                                    <TextBox x:Name="RenameBox" Background="Transparent" BorderThickness="0" FontSize="12"
+                                             Foreground="{StaticResource Paper}" CaretBrush="{StaticResource Paper}"
+                                             Padding="9,0" VerticalContentAlignment="Center" MaxLength="40"
+                                             KeyDown="RenameBox_KeyDown" />
+                                </Border>
+                                <Button Style="{StaticResource Pill}" Content="DONE" Margin="8,0,0,0" Padding="11,0" Height="26"
+                                        Background="{StaticResource Paper}" Foreground="{StaticResource Ink}"
+                                        BorderBrush="Transparent" Click="RenameDone_Click" />
+                            </StackPanel>
+
+                            <StackPanel x:Name="GroupButtons" Grid.Column="1" Orientation="Horizontal">
+                                <Button x:Name="GroupShareBtn" Style="{StaticResource RoundIcon}" Content="&#xE72D;" Margin="0,0,8,0"
+                                        ToolTip="Copy all files of this group" Click="GroupShare_Click" />
+                                <Control x:Name="GroupSpinner" Style="{StaticResource Spinner}" Margin="0,0,8,0" Visibility="Collapsed" />
+                                <Button x:Name="GroupCopyBtn" Style="{StaticResource RoundIcon}" Content="&#xE8C8;" Margin="0,0,8,0"
+                                        Foreground="{StaticResource Accent}" ToolTip="Copy group link" Click="GroupCopy_Click" />
+                                <Button x:Name="GroupLinkBtn" Style="{StaticResource RoundIcon}" Content="&#xE71B;" Margin="0,0,8,0"
+                                        ToolTip="One shareable link for the whole group" Click="GroupLink_Click" />
+                                <Button Style="{StaticResource RoundIcon}" Content="&#xE712;" Click="GroupMore_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- ===== list / empty state ===== -->
+                    <Grid x:Name="ContentArea" Grid.Row="3" Background="Transparent">
+                        <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="68" Height="68" HorizontalAlignment="Center">
+                                <Ellipse x:Name="EmptyRing" Stroke="{StaticResource Line}" StrokeThickness="1" />
+                                <TextBlock x:Name="EmptyGlyph" Text="&#xE896;" FontFamily="{StaticResource IconFont}" FontSize="25"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#CCF3EEE6" />
+                            </Grid>
+                            <TextBlock x:Name="EmptyText" Text="Drop files here" FontSize="15" FontWeight="Light"
+                                       Foreground="{StaticResource Soft}" Margin="0,14,0,0" HorizontalAlignment="Center" />
+                        </StackPanel>
+
+                        <ScrollViewer x:Name="ListScroller" VerticalScrollBarVisibility="Auto" Padding="0">
+                            <ItemsControl x:Name="ItemsList" ItemTemplate="{StaticResource ItemTemplate}" Margin="14,6">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <VirtualizingStackPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <!-- dashed drop outline -->
+                        <Rectangle x:Name="DropOutline" RadiusX="24" RadiusY="24" Margin="14,4" StrokeThickness="1.2"
+                                   StrokeDashArray="4 4" Stroke="Transparent" Fill="Transparent" IsHitTestVisible="False" />
+                    </Grid>
+
+                    <!-- ===== footer: grab to move, corner grip to resize ===== -->
+                    <Grid x:Name="Footer" Grid.Row="4" Background="Transparent" Margin="20,8,14,12"
+                          MouseLeftButtonDown="Drag_MouseLeftButtonDown">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" IsHitTestVisible="False" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE700;" FontFamily="{StaticResource IconFont}" FontSize="10" Foreground="{StaticResource Faint}" />
+                            <TextBlock x:Name="FooterMove" Text="DRAG HERE TO MOVE" Style="{StaticResource Mono}" FontSize="9"
+                                       Foreground="{StaticResource Faint}" Margin="6,0,0,0" />
+                            <TextBlock x:Name="FooterAlt" Text="ALT + DRAG ANYWHERE" Style="{StaticResource Mono}" FontSize="9"
+                                       Foreground="{StaticResource Faint}" Margin="24,0,0,0" />
+                        </StackPanel>
+                        <Thumb x:Name="Grip" Grid.Column="1" Width="16" Height="16" Cursor="SizeNWSE"
+                               DragStarted="Grip_DragStarted" DragDelta="Grip_DragDelta" DragCompleted="Grip_DragCompleted">
+                            <Thumb.Template>
+                                <ControlTemplate TargetType="Thumb">
+                                    <Grid Background="Transparent">
+                                        <Path Stroke="#73F3EEE6" StrokeThickness="1" Data="M 4,15 L 15,4 M 8,15 L 15,8 M 12,15 L 15,12" />
+                                    </Grid>
+                                </ControlTemplate>
+                            </Thumb.Template>
+                        </Thumb>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
