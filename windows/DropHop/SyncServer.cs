@@ -58,6 +58,11 @@ internal sealed class HttpRequest
     public string Path = "";
     public Dictionary<string, string> Headers = new();   // lower-cased keys
     public byte[] Body = Array.Empty<byte>();
+
+    // Phone → PC uploads are streamed straight to disk instead of being held in memory.
+    public bool Streaming;
+    public long ContentLength;
+    public byte[] Prefix = Array.Empty<byte>();     // the first body bytes that arrived together with the headers
 }
 
 internal abstract record SyncResponse;
@@ -333,10 +338,95 @@ public sealed class SyncServer : Observable
             var req = await ReadRequest(stream, cts.Token);
             if (req == null) return;
 
+            if (req.Streaming)
+            {
+                await HandleUpload(stream, req);
+                return;
+            }
+
             var response = await await _ui.InvokeAsync(() => Route(req));
             await Send(stream, response);
         }
         catch { /* the phone went away; nothing to do */ }
+    }
+
+    // ---------- phone → PC upload:  PUT /v1/upload?name=<url-encoded file name> ----------
+
+    private const long MaxUploadBytes = 4L * 1024 * 1024 * 1024;
+
+    private async Task HandleUpload(NetworkStream stream, HttpRequest req)
+    {
+        // Same rule as everything else: no token, no upload. Checked before a single byte is stored.
+        bool allowed = await _ui.InvokeAsync(() => IsAuthorized(req));
+        if (!allowed) { await Send(stream, Fail(401, "Not paired")); return; }
+        if (req.ContentLength < 0 || req.ContentLength > MaxUploadBytes)
+        {
+            await Send(stream, Fail(413, "That file is too large"));
+            return;
+        }
+
+        var name = SafeFileName(QueryValue(req.Path, "name"));
+        var id = Guid.NewGuid();
+        var dir = Path.Combine(ShelfStore.Root, id.ToString());
+        var dest = Path.Combine(dir, name);
+        try
+        {
+            Directory.CreateDirectory(dir);
+            long remaining = req.ContentLength;
+            await using (var fs = new FileStream(dest, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 18, true))
+            {
+                if (req.Prefix.Length > 0)
+                {
+                    await fs.WriteAsync(req.Prefix);
+                    remaining -= req.Prefix.Length;
+                }
+                var buf = new byte[256 * 1024];
+                while (remaining > 0)
+                {
+                    // gives up only if the phone goes completely silent for 30 s
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    int n = await stream.ReadAsync(buf.AsMemory(0, (int)Math.Min(buf.Length, remaining)), cts.Token);
+                    if (n <= 0) throw new IOException("The upload was cut off");
+                    await fs.WriteAsync(buf.AsMemory(0, n));
+                    remaining -= n;
+                }
+            }
+
+            long size = new FileInfo(dest).Length;
+            await _ui.InvokeAsync(() => _store.AddReceived(id, name, size));
+            await Send(stream, Json(200, new Dictionary<string, string> { ["ok"] = "true" }));
+        }
+        catch (Exception e)
+        {
+            try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
+            try { await Send(stream, Fail(500, "Could not save the file: " + e.Message)); } catch { }
+        }
+    }
+
+    private static string QueryValue(string pathAndQuery, string key)
+    {
+        int q = pathAndQuery.IndexOf('?');
+        if (q < 0) return "";
+        foreach (var part in pathAndQuery[(q + 1)..].Split('&'))
+        {
+            int eq = part.IndexOf('=');
+            if (eq > 0 && part[..eq] == key)
+            {
+                try { return Uri.UnescapeDataString(part[(eq + 1)..]); } catch { return ""; }
+            }
+        }
+        return "";
+    }
+
+    /// <summary>A name the phone chose can never escape the shelf folder or contain characters Windows rejects.</summary>
+    private static string SafeFileName(string raw)
+    {
+        var name = raw.Replace('\\', '/');
+        name = name.Substring(name.LastIndexOf('/') + 1);
+        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+        name = name.Trim().TrimEnd('.');
+        if (name.Length > 150) name = name[..150];
+        return name.Length == 0 ? "file" : name;
     }
 
     private static async Task<HttpRequest?> ReadRequest(NetworkStream stream, CancellationToken ct)
@@ -365,10 +455,22 @@ public sealed class SyncServer : Observable
             req.Headers[line[..colon].ToLowerInvariant()] = line[(colon + 1)..].Trim();
         }
 
-        int length = req.Headers.TryGetValue("content-length", out var cl) && int.TryParse(cl, out var v) ? v : 0;
-        if (length < 0 || length > 65_536) return null;
-
+        long declared = req.Headers.TryGetValue("content-length", out var cl) && long.TryParse(cl, out var v) ? v : 0;
         int bodyStart = headEnd + 4;
+
+        // A file coming from the phone: don't read it here, HandleUpload streams it to disk.
+        if (req.Method == "PUT" && req.Path.Split('?')[0] == "/v1/upload")
+        {
+            req.Streaming = true;
+            req.ContentLength = declared;
+            int have = (int)Math.Min(buf.Count - bodyStart, Math.Max(declared, 0));
+            req.Prefix = buf.GetRange(bodyStart, have).ToArray();
+            return req;
+        }
+
+        if (declared < 0 || declared > 65_536) return null;
+        int length = (int)declared;
+
         while (buf.Count - bodyStart < length)
         {
             int n = await stream.ReadAsync(chunk, ct);
@@ -425,6 +527,6 @@ public sealed class SyncServer : Observable
     private static string Reason(int s) => s switch
     {
         200 => "OK", 400 => "Bad Request", 401 => "Unauthorized", 403 => "Forbidden",
-        404 => "Not Found", 502 => "Bad Gateway", _ => "Internal Server Error",
+        404 => "Not Found", 413 => "Payload Too Large", 502 => "Bad Gateway", _ => "Internal Server Error",
     };
 }

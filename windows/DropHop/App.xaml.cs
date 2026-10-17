@@ -55,6 +55,9 @@ public partial class App : Application
         _sync.Start();       // lets your paired phone see and download the shelf
 
         BuildTray();
+
+        _store.Received += name =>
+            _tray.ShowBalloonTip(3000, "DropHop", "Received " + name + " from your phone", Forms.ToolTipIcon.Info);
     }
 
     private void BuildTray()

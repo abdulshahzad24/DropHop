@@ -22,6 +22,9 @@ public sealed class ShelfStore
     /// <summary>Raised after anything changed (items, groups, links, …).</summary>
     public event Action? Changed;
 
+    /// <summary>Raised when the paired phone has sent a file to this PC (argument = file name).</summary>
+    public event Action<string>? Received;
+
     public static readonly string Root = MakeRoot();
 
     private static string MakeRoot()
@@ -86,6 +89,16 @@ public sealed class ShelfStore
                 System.Media.SystemSounds.Beep.Play();
             }
         }
+    }
+
+    /// <summary>A file the phone uploaded has already been written to Root\\id\\name; put it on the shelf.</summary>
+    public void AddReceived(Guid id, string name, long size)
+    {
+        var item = new ShelfItem { Id = id, Name = name, Size = size };
+        item.Icon = IconHelper.For(FilePath(item));
+        Items.Insert(0, item);
+        Save();
+        Received?.Invoke(name);
     }
 
     public void Remove(ShelfItem item)

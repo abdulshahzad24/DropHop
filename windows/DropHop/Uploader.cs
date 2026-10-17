@@ -40,6 +40,12 @@ public static class Uploader
         _ => 100_000_000,
     };
 
+    // Free hosts refuse programs, so these are sent inside a zip instead.
+    private static readonly HashSet<string> WrapInZip = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".msi", ".scr", ".bat", ".cmd", ".com", ".cpl", ".dll", ".jar", ".vbs", ".ps1",
+    };
+
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(20) };
 
     /// <summary>Several files → one zip → one link.</summary>
@@ -81,6 +87,21 @@ public static class Uploader
             finally { TryDelete(zip); }
         }
         if (!File.Exists(src)) throw new Exception("The file is no longer on the shelf");
+
+        if (WrapInZip.Contains(Path.GetExtension(src)))
+        {
+            var wrapped = Path.Combine(Path.GetTempPath(), "drophop-" + Guid.NewGuid().ToString("N") + ".zip");
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using var za = ZipFile.Open(wrapped, ZipArchiveMode.Create);
+                    za.CreateEntryFromFile(src, Path.GetFileName(src), CompressionLevel.Fastest);
+                });
+                return await SendToAnyHost(wrapped, Path.GetFileName(src) + ".zip", hours);
+            }
+            finally { TryDelete(wrapped); }
+        }
         return await SendToAnyHost(src, Path.GetFileName(src), hours);
     }
 
@@ -183,7 +204,7 @@ public static class Uploader
         // An HTML page instead of a link means the host blocked or rejected us.
         var lower = text.ToLowerInvariant();
         if (lower.StartsWith("<") || lower.Contains("<html"))
-            throw new HostRefused($"refused the upload (HTTP {code})");
+            throw new HostRefused($"blocked it (HTTP {code})");
 
         if (host == Host.Tmpfiles)
         {
