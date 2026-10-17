@@ -11,8 +11,19 @@ android {
         applicationId = "com.local.drophop.mobile"
         minSdk = 29            // Android 10+: saves downloads to Downloads/DropHop without extra permissions
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    // One fixed key for every build. GitHub's build machines create a brand-new debug key on every run, and Android
+    // refuses to install an update signed with a different key than the installed app ("App not installed").
+    signingConfigs {
+        create("shared") {
+            storeFile = file("drophop.keystore")
+            storePassword = "drophop-shared"
+            keyAlias = "drophop"
+            keyPassword = "drophop-shared"
+        }
     }
 
     buildTypes {
@@ -20,8 +31,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signs with the debug key so `assembleRelease` gives an installable APK for personal use.
-            signingConfig = signingConfigs.getByName("debug")
+            // Personal-use signing so `assembleRelease` gives an installable APK (not for the Play Store).
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
 

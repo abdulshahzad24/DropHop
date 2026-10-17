@@ -331,6 +331,10 @@ private fun SendBar(state: UploadState?, onPick: () -> Unit) {
 
 @Composable
 private fun Footer() {
+    val context = LocalContext.current
+    val version = remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
+    }
     Row(
         Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -338,7 +342,7 @@ private fun Footer() {
     ) {
         val style = mono(9, FontWeight.Medium, 2f, White(0.28f))
         Icon(Icons.Filled.Menu, null, tint = White(0.28f), modifier = Modifier.size(11.dp))
-        Text("DROP HOP", style = style)
+        Text(if (version.isEmpty()) "DROP HOP" else "DROP HOP · V$version", style = style)
         Spacer(Modifier.weight(1f))
         Text("PULL DOWN TO SYNC", style = style.copy(letterSpacing = 1.2.sp))
         Icon(Icons.Outlined.ArrowDownward, null, tint = White(0.28f), modifier = Modifier.size(11.dp))
