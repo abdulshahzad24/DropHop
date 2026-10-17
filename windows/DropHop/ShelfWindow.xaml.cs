@@ -85,18 +85,50 @@ public partial class ShelfWindow : Window
         UpdateOutline();
     }
 
+    private DispatcherTimer? _repaintTimer;
+    private int _repaintStep;
+
     /// <summary>
-    /// A transparent (layered) window that was never activated can skip repaints after a drag-and-drop,
-    /// so new rows stay invisible until the window is touched. A half-pixel nudge forces the redraw.
+    /// The shelf is a transparent (layered) window and it is usually shown while another program is still
+    /// dragging, which can make Windows swallow its redraws: the new row exists but is not painted until the
+    /// window is touched. So after every change we "touch" it ourselves, right away and again a few times
+    /// over the next ~0.6 s (the drag has surely finished by then).
     /// </summary>
     private void ForceRepaint()
+    {
+        if (!IsVisible) return;
+        Nudge();
+        _repaintStep = 0;
+        if (_repaintTimer == null)
+        {
+            _repaintTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            _repaintTimer.Tick += (_, _) =>
+            {
+                Nudge();
+                if (++_repaintStep >= 4) _repaintTimer!.Stop();
+            };
+        }
+        _repaintTimer.Stop();
+        _repaintTimer.Start();
+    }
+
+    private void Nudge()
     {
         if (!IsVisible) return;
         ItemsList.UpdateLayout();
         InvalidateVisual();
         UpdateLayout();
-        Left += 0.5;
-        Left -= 0.5;
+
+        // Move by one real pixel and back, and blink the opacity by 1 %: both make Windows present the
+        // window's current contents again. Invisible to the eye.
+        double px = 1.0 / VisualTreeHelper.GetDpi(this).DpiScaleX;
+        Left += px;
+        Opacity = 0.99;
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+        {
+            Left -= px;
+            Opacity = 1;
+        }));
     }
 
     private void UpdateOutline()
@@ -135,7 +167,7 @@ public partial class ShelfWindow : Window
             Style = (Style)FindResource("Pill"),
             Content = title.ToUpperInvariant(),
             Margin = new Thickness(0, 0, 6, 0),
-            Padding = new Thickness(11, 6, 11, 6),
+            Padding = new Thickness(16, 6, 16, 6),
             Foreground = selected ? (Brush)FindResource("Ink") : new SolidColorBrush(Color.FromArgb(0xB3, 0xF3, 0xEE, 0xE6)),
             Background = selected ? (Brush)FindResource("Paper") : Brushes.Transparent,
             BorderBrush = selected ? Brushes.Transparent : (Brush)FindResource("Line"),
