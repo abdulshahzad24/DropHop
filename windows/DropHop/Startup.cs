@@ -5,7 +5,7 @@ using Microsoft.Win32;
 namespace DropHop;
 
 /// <summary>"Start with Windows": a per-user entry in the Run key. No admin rights needed.</summary>
-public static class Startup
+public static class AutoStart
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "DropHop";

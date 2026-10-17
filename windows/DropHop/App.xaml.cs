@@ -34,7 +34,7 @@ public partial class App : Application
         };
 
         _store = new ShelfStore();
-        Startup.Prepare();      // run at Windows startup (on by default, switch off in the tray menu)
+        AutoStart.Prepare();      // run at Windows startup (on by default, switch off in the tray menu)
         _sync = new SyncServer(_store);
         _shelf = new ShelfWindow(_store);
 
@@ -99,11 +99,11 @@ public partial class App : Application
         }
         menu.Items.Add(summon);
 
-        var startup = new Forms.ToolStripMenuItem("Start with Windows") { Checked = Startup.IsEnabled, CheckOnClick = false };
+        var startup = new Forms.ToolStripMenuItem("Start with Windows") { Checked = AutoStart.IsEnabled, CheckOnClick = false };
         startup.Click += (_, _) =>
         {
-            Startup.Set(!Startup.IsEnabled);
-            startup.Checked = Startup.IsEnabled;
+            AutoStart.Set(!AutoStart.IsEnabled);
+            startup.Checked = AutoStart.IsEnabled;
         };
         menu.Items.Add(startup);
         menu.Items.Add(new Forms.ToolStripSeparator());
