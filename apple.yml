@@ -1,0 +1,41 @@
+name: Build Mac and iOS
+on:
+  push:
+  workflow_dispatch:
+
+# Both jobs use the "xcode-27" machine because the iOS project was made with Xcode 27
+# (the normal macos-latest machines only have Xcode 26 and cannot open it).
+jobs:
+  mac:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build DropHop.dmg (universal, ad-hoc signed)
+        working-directory: mac
+        run: bash make-dmg.sh
+      - uses: actions/upload-artifact@v5
+        with:
+          name: DropHop-Mac-dmg
+          path: mac/DropHop.dmg
+          if-no-files-found: error
+
+  ios:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build unsigned IPA
+        working-directory: ios
+        run: |
+          xcodebuild -project DropHopMobile.xcodeproj -target DropHopMobile \
+            -configuration Release -sdk iphoneos \
+            SYMROOT="$PWD/build" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
+            build
+          mkdir -p Payload
+          cp -R build/Release-iphoneos/DropHopMobile.app Payload/
+          zip -qry DropHopMobile-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v5
+        with:
+          name: DropHop-iOS-unsigned-ipa
+          path: ios/DropHopMobile-unsigned.ipa
+          if-no-files-found: error
