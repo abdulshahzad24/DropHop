@@ -1,5 +1,7 @@
 package com.local.drophop.mobile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Refresh
@@ -82,6 +86,12 @@ fun ShelfScreen(client: SyncClient) {
     val progress by client.progress.collectAsStateWithLifecycle()
     val failures by client.failures.collectAsStateWithLifecycle()
     val local by client.local.collectAsStateWithLifecycle()
+    val upload by client.upload.collectAsStateWithLifecycle()
+
+    // The system file picker: any number of files from anywhere on the phone.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) client.uploadAsync(uris)
+    }
 
     var filesOnly by rememberSaveable { mutableStateOf(false) }
     var confirmUnpair by remember { mutableStateOf(false) }
@@ -134,6 +144,7 @@ fun ShelfScreen(client: SyncClient) {
                     }
                 }
             }
+            SendBar(upload, onPick = { picker.launch(arrayOf("*/*")) })
             Footer()
         }
     }
@@ -260,10 +271,61 @@ private fun EmptyState() {
         Text("Nothing on your shelf yet", fontSize = 17.sp, fontWeight = FontWeight.Medium, color = White(0.88f))
         Spacer(Modifier.height(12.dp))
         Text(
-            "Drop a file onto the DropHop shelf on your computer and it will appear here.",
+            "Drop a file onto the DropHop shelf on your computer and it will appear here. Or send one from this phone with the button below.",
             fontSize = 13.sp, color = White(0.48f), textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 35.dp),
         )
+    }
+}
+
+/** Full-width capsule: pick files on the phone and send them to the computer's shelf. */
+@Composable
+private fun SendBar(state: UploadState?, onPick: () -> Unit) {
+    val busy = state?.active == true
+    val fraction = (state?.fraction ?: 0.0).toFloat().coerceIn(0f, 1f)
+    val label = when {
+        busy && state != null ->
+            "SENDING ${state.index} OF ${state.total} · ${(fraction * 100).toInt()}%"
+        state?.done == true -> "SENT TO YOUR COMPUTER"
+        else -> "SEND FILES TO COMPUTER"
+    }
+    Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 6.dp)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(CircleShape)
+                .background(if (busy) White(0.06f) else Palette.Cream)
+                .then(if (busy) Modifier.border(1.dp, White(0.14f), CircleShape) else Modifier)
+                .clickable(enabled = !busy, onClick = onPick)
+                .semantics { contentDescription = "Send files to your computer" },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (busy) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                        .fillMaxWidth(fraction)
+                        .background(Palette.Accent.copy(alpha = 0.38f))
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Icon(
+                    Icons.Outlined.FileUpload, null,
+                    tint = if (busy) White(0.85f) else Palette.CreamInk,
+                    modifier = Modifier.size(19.dp),
+                )
+                Text(label, style = mono(11, FontWeight.Bold, 1.6f, if (busy) Color.White else Palette.CreamInk))
+            }
+        }
+        state?.error?.let { message ->
+            Text(
+                message,
+                fontSize = 12.sp, color = Palette.Error, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, start = 8.dp, end = 8.dp),
+            )
+        }
     }
 }
 

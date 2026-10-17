@@ -40,6 +40,18 @@ data class DiscoveredComputer(val ref: ComputerRef) {
     val name: String get() = ref.name
 }
 
+/** Progress of files being sent from this phone to the computer. */
+data class UploadState(
+    val index: Int,
+    val total: Int,
+    val name: String,
+    val fraction: Double,
+    val done: Boolean = false,
+    val error: String? = null,
+) {
+    val active: Boolean get() = !done && error == null
+}
+
 /** A file that has been downloaded to the phone's Downloads/DropHop folder. */
 data class LocalFile(val name: String, val uri: String)
 

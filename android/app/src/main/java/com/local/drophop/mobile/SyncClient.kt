@@ -2,8 +2,10 @@ package com.local.drophop.mobile
 
 import android.app.Application
 import android.content.ContentValues
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.provider.Settings
 import android.webkit.MimeTypeMap
 import androidx.lifecycle.AndroidViewModel
@@ -21,8 +23,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.util.UUID
 import kotlin.coroutines.coroutineContext
 
@@ -42,6 +46,7 @@ class SyncClient(app: Application) : AndroidViewModel(app) {
     private val _failures = MutableStateFlow<Map<String, String>>(emptyMap())
     private val _local = MutableStateFlow<Map<String, LocalFile>>(emptyMap())     // item id → downloaded file
     private val _notice = MutableStateFlow<String?>(null)
+    private val _upload = MutableStateFlow<UploadState?>(null)                    // files being sent to the computer
 
     val status: StateFlow<Status> = _status
     val items: StateFlow<List<RemoteItem>> = _items
@@ -50,6 +55,7 @@ class SyncClient(app: Application) : AndroidViewModel(app) {
     val failures: StateFlow<Map<String, String>> = _failures
     val local: StateFlow<Map<String, LocalFile>> = _local
     val notice: StateFlow<String?> = _notice
+    val upload: StateFlow<UploadState?> = _upload
 
     private val context get() = getApplication<Application>()
     private val prefs = app.getSharedPreferences("drophop", android.content.Context.MODE_PRIVATE)
@@ -194,6 +200,136 @@ class SyncClient(app: Application) : AndroidViewModel(app) {
         val t = token
         if (base == null || t == null) throw SyncError.Unreachable
         return open("$base/$path", "GET", t, timeoutMs)
+    }
+
+    // ---------------------------------------------------------------- Uploads (phone → computer)
+
+    /** Sends the chosen files to the computer; they appear on its shelf straight away. */
+    fun uploadAsync(uris: List<Uri>) {
+        if (uris.isEmpty() || _upload.value?.active == true) return
+        viewModelScope.launch {
+            try {
+                val ref = computer
+                if (baseUrl == null && ref != null) baseUrl = Resolver.baseUrl(context, ref)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _upload.value = UploadState(0, uris.size, "", 0.0, error = (e as? SyncError)?.message ?: "Can't reach your computer.")
+                return@launch
+            }
+
+            var failure: String? = null
+            for ((i, uri) in uris.withIndex()) {
+                val index = i + 1
+                var name = "file"
+                try {
+                    val meta = withContext(Dispatchers.IO) { queryMeta(uri) }
+                    name = meta.first
+                    _upload.value = UploadState(index, uris.size, name, 0.0)
+                    withContext(Dispatchers.IO) { sendFile(uri, name, meta.second, index, uris.size) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: SyncError.Unauthorized) {
+                    unpair()
+                    _notice.value = "That computer no longer recognises this phone. Pair again to continue."
+                    _upload.value = null
+                    return@launch
+                } catch (e: Exception) {
+                    failure = name + ": " + ((e as? SyncError)?.message ?: e.localizedMessage ?: "Upload failed.")
+                    break
+                }
+            }
+
+            refresh()      // the file is on the computer's shelf now, so it shows up in our list too
+            if (failure != null) {
+                _upload.value = UploadState(0, uris.size, "", 0.0, error = failure)
+            } else {
+                _upload.value = UploadState(uris.size, uris.size, "", 1.0, done = true)
+                delay(2500)
+                if (_upload.value?.done == true) _upload.value = null
+            }
+        }
+    }
+
+    /** File name and size as the document provider reports them (size is -1 when unknown). */
+    private fun queryMeta(uri: Uri): Pair<String, Long> {
+        var name: String? = null
+        var size = -1L
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                val n = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val z = c.getColumnIndex(OpenableColumns.SIZE)
+                if (n >= 0 && !c.isNull(n)) name = c.getString(n)
+                if (z >= 0 && !c.isNull(z)) size = c.getLong(z)
+            }
+        }
+        return (name ?: uri.lastPathSegment ?: "file") to size
+    }
+
+    private fun sendFile(uri: Uri, name: String, reportedSize: Long, index: Int, total: Int) {
+        val base = baseUrl ?: throw SyncError.Unreachable
+        val t = token ?: throw SyncError.Unreachable
+        val resolver = context.contentResolver
+        var staged: File? = null
+        var size = reportedSize
+        try {
+            if (size < 0) {
+                // The provider didn't say how big the file is, and the computer needs to know: copy it first.
+                val tmp = File(context.cacheDir, "up-" + UUID.randomUUID())
+                (resolver.openInputStream(uri) ?: throw IOException("Couldn't read that file.")).use { i ->
+                    tmp.outputStream().use { o -> i.copyTo(o) }
+                }
+                staged = tmp
+                size = tmp.length()
+            }
+            val input: InputStream = staged?.inputStream()
+                ?: resolver.openInputStream(uri)
+                ?: throw IOException("Couldn't read that file.")
+
+            val encoded = URLEncoder.encode(name, "UTF-8").replace("+", "%20")
+            val conn = open("$base/v1/upload?name=$encoded", "PUT", t, 60_000).apply {
+                doOutput = true
+                setFixedLengthStreamingMode(size)
+                setRequestProperty("Content-Type", "application/octet-stream")
+            }
+            try {
+                var done = 0L
+                var lastReported = 0.0
+                input.use { src ->
+                    conn.outputStream.use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        while (true) {
+                            val n = src.read(buf)
+                            if (n < 0) break
+                            out.write(buf, 0, n)
+                            done += n
+                            if (size > 0) {
+                                val p = done.toDouble() / size
+                                if (p - lastReported >= 0.01) {
+                                    lastReported = p
+                                    _upload.value = UploadState(index, total, name, p)
+                                }
+                            }
+                        }
+                    }
+                }
+                when (val code = conn.responseCode) {
+                    200 -> {}
+                    401 -> throw SyncError.Unauthorized
+                    else -> {
+                        val text = conn.errorStream?.bufferedReader()?.readText().orEmpty()
+                        val message = try { JSONObject(text).getString("error") } catch (e: Exception) { null }
+                        throw SyncError.Server(message ?: "The computer replied with an error ($code).")
+                    }
+                }
+            } catch (e: IOException) {
+                throw SyncError.Unreachable
+            } finally {
+                conn.disconnect()
+            }
+        } finally {
+            staged?.delete()
+        }
     }
 
     // ---------------------------------------------------------------- Downloads
