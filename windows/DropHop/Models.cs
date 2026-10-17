@@ -73,6 +73,7 @@ public sealed class ShelfItem : Observable
     {
         get
         {
+            if (Uploading) return "Uploading… this can take a minute for big files";
             if (Error != null) return Error;
             if (LinkActive && Link != null) return Link;
             var s = Format.Bytes(Size);
@@ -81,7 +82,7 @@ public sealed class ShelfItem : Observable
     }
 
     /// <summary>Errors and links are drawn in the accent colour, plain info is dimmed.</summary>
-    [JsonIgnore] public bool SubtitleAccent => Error != null || LinkActive;
+    [JsonIgnore] public bool SubtitleAccent => Uploading || Error != null || LinkActive;
 
     [JsonIgnore] public Visibility SpinnerVisibility => Uploading ? Visibility.Visible : Visibility.Collapsed;
     [JsonIgnore] public Visibility CopyVisibility => !Uploading && LinkActive ? Visibility.Visible : Visibility.Collapsed;

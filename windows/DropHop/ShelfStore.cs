@@ -165,9 +165,16 @@ public sealed class ShelfStore
         catch (Exception e)
         {
             item.Error = e.Message;
+            LogError("link for " + item.Name, e);
         }
         item.Uploading = false;
         Changed?.Invoke();
+    }
+
+    private static void LogError(string what, Exception e)
+    {
+        try { File.AppendAllText(Path.Combine(Root, "error.log"), DateTime.Now + "  " + what + "\n" + e.Message + "\n\n"); }
+        catch { }
     }
 
     private readonly HashSet<Guid> _uploadingGroups = new();
@@ -193,6 +200,7 @@ public sealed class ShelfStore
         catch (Exception e)
         {
             GroupErrors[group.Id] = e.Message;
+            LogError("group link for " + group.Name, e);
         }
         _uploadingGroups.Remove(group.Id);
         Changed?.Invoke();

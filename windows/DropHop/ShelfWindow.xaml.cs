@@ -21,8 +21,7 @@ public partial class ShelfWindow : Window
     private readonly ICollectionView _view;
 
     private Guid? _selected;               // null = "All"
-    private bool _adding, _renaming, _targeted, _draggingOut;
-    private bool _compact;
+    private bool _renaming, _targeted, _draggingOut;
     private bool _changePending;
 
     private Point _dragStart;
@@ -152,7 +151,6 @@ public partial class ShelfWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        _adding = true;
         _renaming = false;
         NewGroupBox.Text = "";
         NewGroupPill.Visibility = Visibility.Visible;
@@ -166,7 +164,6 @@ public partial class ShelfWindow : Window
 
     private void EndAdd()
     {
-        _adding = false;
         NewGroupPill.Visibility = Visibility.Collapsed;
         CancelAddBtn.Visibility = Visibility.Collapsed;
         AddBtn.Visibility = Visibility.Visible;
@@ -253,6 +250,7 @@ public partial class ShelfWindow : Window
     private void GroupLink_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedGroup is not ShelfGroup g) return;
+        Activate();
         ShowMenu((FrameworkElement)sender,
             Entry("Group link (zip) – 1 hour", () => _store.MakeGroupLink(g, 1)),
             Entry("Group link (zip) – 12 hours", () => _store.MakeGroupLink(g, 12)),
@@ -340,7 +338,6 @@ public partial class ShelfWindow : Window
     {
         double w = ActualWidth - 28, h = ActualHeight - 28;      // minus the shadow margin
         bool compact = w < 340 || h < 400;
-        _compact = compact;
         CountText.FontSize = compact ? 34 : 46;
         Header.Margin = compact ? new Thickness(14, 10, 14, 4) : new Thickness(20, 16, 20, 8);
         ChipsPanel.Margin = compact ? new Thickness(12, 4, 12, 4) : new Thickness(18, 8, 18, 8);
@@ -530,6 +527,7 @@ public partial class ShelfWindow : Window
     private void RowLink_Click(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is not ShelfItem item) return;
+        Activate();
         ShowMenu((FrameworkElement)sender,
             Entry("Link valid for 1 hour", () => _store.MakeLink(item, 1)),
             Entry("Link valid for 12 hours", () => _store.MakeLink(item, 12)),

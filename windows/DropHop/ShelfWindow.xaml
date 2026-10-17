@@ -5,7 +5,7 @@
         Title="DropHop" Width="408" Height="588" MinWidth="328" MinHeight="368" MaxWidth="588" MaxHeight="928"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
         ShowInTaskbar="False" Topmost="True" ShowActivated="False" AllowDrop="True"
-        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        UseLayoutRounding="True" SnapsToDevicePixels="True" FocusVisualStyle="{x:Null}"
         FontFamily="{StaticResource UiFont}" Foreground="{StaticResource Paper}"
         PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown"
         DragEnter="Window_DragOver" DragOver="Window_DragOver" DragLeave="Window_DragLeave" Drop="Window_Drop"
@@ -13,7 +13,7 @@
 
     <Window.Resources>
         <DataTemplate x:Key="ItemTemplate" DataType="{x:Type local:ShelfItem}">
-            <Border Margin="0,0,0,8" Padding="9" CornerRadius="22" BorderThickness="1"
+            <Border Margin="0,0,0,8" Padding="9,9,16,9" CornerRadius="32" BorderThickness="1"
                     Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                     PreviewMouseLeftButtonDown="Row_PreviewMouseLeftButtonDown"
                     PreviewMouseMove="Row_PreviewMouseMove"
@@ -26,15 +26,17 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- file icon sits on a cream tile -->
-                    <Border Width="44" Height="44" CornerRadius="14" Background="{StaticResource Tile}">
+                    <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Tile}">
                         <Image Source="{Binding Icon}" Width="30" Height="30" Stretch="Uniform"
                                RenderOptions.BitmapScalingMode="HighQuality" />
                     </Border>
 
                     <StackPanel Grid.Column="1" Margin="11,0,6,0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Name}" FontSize="13.5" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Name}" FontSize="13.5" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding Name}" />
                         <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Margin="0,3,0,0"
-                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap">
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                   ToolTip="{Binding Subtitle}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{StaticResource Dim}" />
@@ -121,6 +123,7 @@
 
                     <!-- ===== chip bar: All + one chip per group + "+" ===== -->
                     <ScrollViewer x:Name="ChipScroller" Grid.Row="1" HorizontalScrollBarVisibility="Hidden"
+                                  Focusable="False" FocusVisualStyle="{x:Null}"
                                   VerticalScrollBarVisibility="Disabled" Background="Transparent"
                                   PreviewMouseWheel="ChipScroller_PreviewMouseWheel"
                                   MouseLeftButtonDown="Drag_MouseLeftButtonDown">
@@ -187,7 +190,7 @@
                     </Border>
 
                     <!-- ===== list / empty state ===== -->
-                    <Grid x:Name="ContentArea" Grid.Row="3" Background="Transparent">
+                    <Grid x:Name="ContentArea" Grid.Row="3" Background="Transparent" Focusable="False" FocusVisualStyle="{x:Null}">
                         <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Grid Width="68" Height="68" HorizontalAlignment="Center">
                                 <Ellipse x:Name="EmptyRing" Stroke="{StaticResource Line}" StrokeThickness="1" />
@@ -198,8 +201,10 @@
                                        Foreground="{StaticResource Soft}" Margin="0,14,0,0" HorizontalAlignment="Center" />
                         </StackPanel>
 
-                        <ScrollViewer x:Name="ListScroller" VerticalScrollBarVisibility="Auto" Padding="0">
-                            <ItemsControl x:Name="ItemsList" ItemTemplate="{StaticResource ItemTemplate}" Margin="14,6">
+                        <ScrollViewer x:Name="ListScroller" VerticalScrollBarVisibility="Auto" Padding="0"
+                                      Focusable="False" FocusVisualStyle="{x:Null}">
+                            <ItemsControl x:Name="ItemsList" ItemTemplate="{StaticResource ItemTemplate}" Margin="14,6"
+                                      Focusable="False" FocusVisualStyle="{x:Null}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <VirtualizingStackPanel />
