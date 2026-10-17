@@ -34,6 +34,7 @@ public partial class App : Application
         };
 
         _store = new ShelfStore();
+        Startup.Prepare();      // run at Windows startup (on by default, switch off in the tray menu)
         _sync = new SyncServer(_store);
         _shelf = new ShelfWindow(_store);
 
@@ -97,6 +98,14 @@ public partial class App : Application
             summon.DropDownItems.Add(item);
         }
         menu.Items.Add(summon);
+
+        var startup = new Forms.ToolStripMenuItem("Start with Windows") { Checked = Startup.IsEnabled, CheckOnClick = false };
+        startup.Click += (_, _) =>
+        {
+            Startup.Set(!Startup.IsEnabled);
+            startup.Checked = Startup.IsEnabled;
+        };
+        menu.Items.Add(startup);
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit DropHop", null, (_, _) => Quit());
         _tray.ContextMenuStrip = menu;
