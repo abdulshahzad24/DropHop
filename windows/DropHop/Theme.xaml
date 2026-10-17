@@ -1,5 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:DropHop">
+
+    <local:HalfConverter x:Key="Half" />
 
     <!-- Two primary colours (warm black + cream) and ONE accent (orange).
          Everything else is one of those at a lower opacity — same palette as the Mac app. -->
@@ -78,7 +81,8 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Box" CornerRadius="100" BorderThickness="1"
+                    <Border x:Name="Box" BorderThickness="1"
+                            CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource Half}}"
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             Padding="{TemplateBinding Padding}">

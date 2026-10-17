@@ -130,7 +130,7 @@
                         <StackPanel x:Name="ChipsPanel" Orientation="Horizontal" Margin="18,8">
                             <StackPanel x:Name="ChipsHost" Orientation="Horizontal" />
 
-                            <Border x:Name="NewGroupPill" Visibility="Collapsed" CornerRadius="100" BorderThickness="1"
+                            <Border x:Name="NewGroupPill" Visibility="Collapsed" CornerRadius="13" BorderThickness="1"
                                     BorderBrush="{StaticResource Accent}" Background="{StaticResource Surface}"
                                     Width="132" Height="26" Margin="0,0,6,0">
                                 <Grid>
@@ -164,7 +164,7 @@
                                        VerticalAlignment="Center" Foreground="{StaticResource Dim}" />
 
                             <StackPanel x:Name="RenamePanel" Orientation="Horizontal" Visibility="Collapsed" Grid.ColumnSpan="2">
-                                <Border CornerRadius="100" BorderThickness="1" BorderBrush="{StaticResource Accent}"
+                                <Border CornerRadius="13" BorderThickness="1" BorderBrush="{StaticResource Accent}"
                                         Background="{StaticResource Surface}" Width="190" Height="26">
                                     <TextBox x:Name="RenameBox" Background="Transparent" BorderThickness="0" FontSize="12"
                                              Foreground="{StaticResource Paper}" CaretBrush="{StaticResource Paper}"

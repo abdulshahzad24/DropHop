@@ -42,7 +42,7 @@ public partial class ShelfWindow : Window
         {
             if (_changePending) return;
             _changePending = true;
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => { _changePending = false; Refresh(); }));
+            Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() => { _changePending = false; Refresh(); ForceRepaint(); }));
         };
 
         Closing += (_, e) =>
@@ -83,6 +83,20 @@ public partial class ShelfWindow : Window
         RebuildChips();
         UpdateGroupBar();
         UpdateOutline();
+    }
+
+    /// <summary>
+    /// A transparent (layered) window that was never activated can skip repaints after a drag-and-drop,
+    /// so new rows stay invisible until the window is touched. A half-pixel nudge forces the redraw.
+    /// </summary>
+    private void ForceRepaint()
+    {
+        if (!IsVisible) return;
+        ItemsList.UpdateLayout();
+        InvalidateVisual();
+        UpdateLayout();
+        Left += 0.5;
+        Left -= 0.5;
     }
 
     private void UpdateOutline()
