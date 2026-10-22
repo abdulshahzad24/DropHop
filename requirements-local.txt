@@ -1,0 +1,3 @@
+# Optional: free offline models (CLIP + BLIP). Large download (~2 GB). Install after requirements.txt.
+torch
+transformers

@@ -1,0 +1,10 @@
+# Lite install: uses Claude, OpenAI, or Gemini for analysis (needs an API key, see README.md)
+fastapi
+uvicorn
+python-multipart
+pillow
+numpy
+requests
+yt-dlp
+anthropic
+google-genai

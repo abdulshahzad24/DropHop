@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ghostly-server
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false        # you type it in the Render dashboard
+      - key: GHOSTLY_TOKEN
+        sync: false        # your own secret, see DEPLOY.md
